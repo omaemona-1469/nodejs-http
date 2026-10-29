@@ -1,10 +1,25 @@
 'use strict';
 const http = require('node:http');
 const pug = require('pug');
+const auth = require('http-auth');
+const basic = auth.basic(
+  { realm: 'Enquetes Area.' },
+  (username, password, callback) => {
+    callback(username === 'guest' && password === 'xaXZJQmE');
+  }
+);
 const server = http
-  .createServer((req, res) => {
-    const now = new Date();
-    console.info(`[${now}] Requested by ${req.socket.remoteAddress}`);
+  .createServer(basic.check((req, res) => {
+    console.info(`Requested by ${req.socket.remoteAddress}`);
+
+    if (req.url === '/logout') {
+      res.writeHead(401, {
+        'Content-Type': 'text/plain; charset=utf-8'
+      });
+      res.end('ログアウトしました');
+      return;
+    }
+
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8'
     });
@@ -13,7 +28,7 @@ const server = http
       case 'GET':
         if (req.url === '/') {
           res.write(pug.renderFile('./top.pug'))
-        } else if (req.url === '/enquetes') {
+        } else if (req.url === '/enquetes' || req.url === '/enquetes/') {
           res.write(pug.renderFile('./enquetes.pug'));
         } else if (req.url === '/enquetes/yaki-tofu') {
           res.write(
@@ -51,7 +66,7 @@ const server = http
           .on('end', () => {
             const answer = new URLSearchParams(rawData);
             const body = `${answer.get('name')}さんは${answer.get('favorite')}に投票しました`;
-            console.info(`[${now}] ${body}`);
+            console.info(`[${new Date()}] ${body}`);
             res.write(
               `<!DOCTYPE html><html lang="ja"><body><h1>${body}</h1></body></html>`
             );
@@ -61,7 +76,7 @@ const server = http
       default:
         break;
     }
-  })
+  }))
   .on('error', e => {
     console.error(`[${new Date()}] Server Error`, e);
   })
